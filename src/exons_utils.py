@@ -20,7 +20,7 @@ def calculate_exon_coverage(gene: Gene, loc_to_exon_cov: Dict[str, Coverage]) ->
         total_length += exon_len
 
         for thres, thres_cov in exon_cov.perc_at_thres.items():
-            total_length_cov_products += total_length * thres_cov
+            total_length_cov_products += exon_len * thres_cov
             total_length_perc_at_thres_products[thres] += total_length_cov_products
 
     coverage = total_length_cov_products / total_length

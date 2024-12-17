@@ -74,15 +74,15 @@ def main(
 
     headers.append("gene_cov")
     for thres in thresholds:
-        headers.append(f"gene_${thres}x")
+        headers.append(f"gene_{thres}x")
 
     headers.append("mane_cov")
     for thres in thresholds:
-        headers.append(f"mane_${thres}x")
+        headers.append(f"mane_{thres}x")
 
     headers.append("exon_cov")
     for thres in thresholds:
-        headers.append(f"exon_${thres}x")
+        headers.append(f"exon_{thres}x")
 
     out_path = out_dir / "results.tsv"
     with out_path.open("w") as out_fh:
