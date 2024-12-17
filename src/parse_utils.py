@@ -74,7 +74,7 @@ class GTFEntry:
         fields = row.split("\t")
         line = row.rstrip()
         fields = line.split("\t")
-        raw_chr, evidence_, mol_type, start, end, _, strand_, _, info_str = fields
+        raw_chr, _, mol_type, start, end, _, _, _, info_str = fields
         if not keep_chr and raw_chr.find("chr") == 0:
             chr = raw_chr.replace("chr", "", 1)
         else:
@@ -102,7 +102,7 @@ class GTFEntry:
     @staticmethod
     def _parse_gtf_info(info_str: str) -> Dict[str, List[str]]:
         info_fields = [field.strip() for field in info_str.strip(";").split(";")]
-        gtf_info = defaultdict(list)
+        gtf_info: Dict[str, List[str]] = defaultdict(list)
         for field in info_fields:
             key, value_raw = field.split(" ")
             value_clean = value_raw.strip('"')
@@ -133,7 +133,7 @@ class Transcript:
         self.exons = exon_entries
 
     def get_bed_exons(self) -> List[str]:
-        bed_exons = []
+        bed_exons: List[str] = []
         for exon in self.exons:
             bed_exon = "\t".join([exon.chr, str(exon.start), str(exon.end)])
             bed_exons.append(bed_exon)
@@ -146,7 +146,7 @@ class Transcript:
         if transcript_entry.mol_type != "transcript":
             raise ValueError("First entry expected to be a transcript entry")
 
-        exon_entries = []
+        exon_entries: List[GTFEntry] = []
 
         for gtf_entry in gtf_entries[1:]:
             if gtf_entry.mol_type == "transcript":
@@ -168,7 +168,7 @@ class Transcript:
         if db_xref is None:
             raise ValueError("Expected RefSeq ID missing")
 
-        if mane_tags is None:
+        if len(mane_tags) == 0:
             raise ValueError("Expected mane_tag missing")
 
         if len(mane_tags) > 1:
@@ -236,7 +236,7 @@ class Gene:
         if gene_entry.mol_type != "gene":
             raise ValueError(f"First entry expected to be a gene entry")
 
-        transcript_entries = []
+        transcript_entries: List[GTFEntry] = []
         for gtf_entry in gtf_entries[1:]:
             if gtf_entry.mol_type == "gene":
                 raise ValueError("Gene type already found, something is wrong")
@@ -261,9 +261,6 @@ class Gene:
                 mane_plus_transcript = transcript
             else:
                 raise ValueError(f"Unknown MANE tag: {transcript.mane_tag}")
-
-        if gene_entry is None:
-            raise ValueError("No gene entry found")
 
         if mane_transcript is None:
             raise ValueError("No MANE transcript entry found")

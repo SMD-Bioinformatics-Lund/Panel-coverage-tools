@@ -72,14 +72,17 @@ def main(
 
     headers = ["hgnc_symbol"]
 
+    headers.append("gene")
     headers.append("gene_cov")
     for thres in thresholds:
         headers.append(f"gene_{thres}x")
 
+    headers.append("mane")
     headers.append("mane_cov")
     for thres in thresholds:
         headers.append(f"mane_{thres}x")
 
+    headers.append("mane_exons")
     headers.append("exon_cov")
     for thres in thresholds:
         headers.append(f"exon_{thres}x")

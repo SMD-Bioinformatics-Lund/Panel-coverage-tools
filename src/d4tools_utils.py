@@ -6,12 +6,21 @@ import traceback
 
 
 class Coverage:
-    def __init__(self, chr: str, start: int, end: int, cov: float, perc_at_thres: Dict[int, float]):
+    def __init__(
+        self,
+        chr: str,
+        start: int,
+        end: int,
+        cov: float,
+        perc_at_thres: Dict[int, float],
+        location_str: str,
+    ):
         self.chr = chr
         self.start = start
         self.end = end
         self.cov = cov
         self.perc_at_thres = perc_at_thres
+        self.location_str = location_str
 
     def get_loc(self) -> str:
         return f"{self.chr}_{self.start}_{self.end}"
