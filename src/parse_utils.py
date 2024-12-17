@@ -214,6 +214,14 @@ class Gene:
             ]
         )
 
+    def get_gene_loc(self) -> str:
+        gene = self.gene_entry
+        return f"{gene.chr}_{gene.start}_{gene.end}"
+
+    def get_mane_loc(self) -> str:
+        mane = self.mane_transcript
+        return f"{mane.chr}_{mane.start}_{mane.end}"
+
     def get_bed_exons(self) -> List[str]:
         return self.mane_transcript.get_bed_exons()
 

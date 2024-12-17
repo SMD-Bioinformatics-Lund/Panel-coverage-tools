@@ -2,16 +2,14 @@
 
 import argparse
 from pathlib import Path
-from typing import Callable, List, Dict, Set
+from typing import List, Dict, Set
 
-from src.exons_utils import GeneCoverage, calculate_exon_coverage, parse_exon_coverage
+from src.exons_utils import calculate_exon_coverage
 from src.d4tools_utils import (
-    calculate_coverage,
-    calculate_perc_at_thres,
-    get_complete_coverage_dict,
+    Coverage,
+    collect_d4_coverages,
 )
 from src.parse_utils import Gene, parse_mane_gtf, parse_mim2gene, parse_panel_json, parse_panel_text
-from src.wip import assign_single_coverage
 
 __version_info__ = ("1", "0", "1")
 __version__ = ".".join(__version_info__)
@@ -25,6 +23,7 @@ def main(
     panel_hgnc_symbols: Set[str],
     all_genes: List[Gene],
     out_dir: Path,
+    thresholds: List[int],
 ):
 
     panel_genes = [gene for gene in all_genes if gene.hgnc_symbol in panel_hgnc_symbols]
@@ -41,88 +40,61 @@ def main(
 
     d4tools_out_dir = out_dir / "d4tools_results"
     d4tools_out_dir.mkdir(parents=True, exist_ok=True)
-    thresholds = [10, 30]
 
-    # FIXME: Refactor this
-
-    gene_covs: List[GeneCoverage] = []
-    gene_loc_to_gene_cov = {}
-    mane_loc_to_gene_cov = {}
+    gene_bed_rows: List[str] = []
+    mane_bed_rows: List[str] = []
     for gene in panel_genes:
-        gene_cov = GeneCoverage(gene)
-        gene_covs.append(gene_cov)
+        gene_bed = gene.get_bed_row()
+        gene_bed_rows.append(gene_bed)
+        mane_bed = gene.get_mane_transcript_bed_row()
+        mane_bed_rows.append(mane_bed)
 
-        gene_loc = gene_cov.get_gene_loc()
-        mane_loc = gene_cov.get_mane_loc()
-
-        gene_loc_to_gene_cov[gene_loc] = gene_cov
-        mane_loc_to_gene_cov[mane_loc] = gene_cov
-
-    def get_gene_bed_row(gene: GeneCoverage) -> str:
-        return gene.gene.get_bed_row()
-
-    def get_mane_bed_row(gene: GeneCoverage) -> str:
-        return gene.gene.get_mane_transcript_bed_row()
-
-    assign_single_coverage(
-        gene_covs,
-        gene_loc_to_gene_cov,
-        d4tools_out_dir,
-        d4tools_command,
-        d4_file,
-        get_gene_bed_row,
-        "gene",
-    )
-    assign_single_coverage(
-        gene_covs,
-        mane_loc_to_gene_cov,
-        d4tools_out_dir,
-        d4tools_command,
-        d4_file,
-        get_mane_bed_row,
-        "mane",
+    gene_coverages = collect_d4_coverages(
+        gene_bed_rows, out_dir, "gene", d4tools_command, d4_file, thresholds
     )
 
-    mane_exons_bed = out_dir / "mane_exons.bed"
-    with mane_exons_bed.open("w") as out_fh:
-        all_exons = set()
-        for gene in panel_genes:
-            for bed_row in gene.get_bed_exons():
-                all_exons.add(bed_row)
-        # Unique rows - only calculate coverage once
-        for bed_row in all_exons:
-            print(bed_row, file=out_fh)
-    exons_cov_out = d4tools_out_dir / "exons_coverage.tsv"
-    exon_cov_results = calculate_coverage(d4tools_command, d4_file, mane_exons_bed, exons_cov_out)
-    exons_thres_out = d4tools_out_dir / "mane_cov_at_thres.tsv"
-    exon_cov_at_thres_results = calculate_perc_at_thres(
-        d4tools_command, d4_file, mane_exons_bed, thresholds, exons_thres_out
+    mane_coverages = collect_d4_coverages(
+        mane_bed_rows, out_dir, "mane", d4tools_command, d4_file, thresholds
     )
 
-    exon_cov_dict = get_complete_coverage_dict(
-        exon_cov_results, exon_cov_at_thres_results, thresholds
+    all_exon_bed_rows: List[str] = []
+    for gene in panel_genes:
+        for bed_row in gene.get_bed_exons():
+            all_exon_bed_rows.append(bed_row)
+    exon_coverages = collect_d4_coverages(
+        all_exon_bed_rows, out_dir, "exons", d4tools_command, d4_file, thresholds
     )
 
-    hgnc_to_exon_cov = {}
-    for gene in gene_covs:
-        exon_cov = calculate_exon_coverage(gene, exon_cov_dict)
-        hgnc_to_exon_cov[gene.gene.hgnc_symbol] = exon_cov
+    gene_mane_exons_coverage: Dict[str, Coverage] = {}
+    for gene in panel_genes:
+        coverage = calculate_exon_coverage(gene, exon_coverages)
+        gene_mane_exons_coverage[gene.get_gene_loc()] = coverage
 
+    # Collect and print
+    output_rows: List[str] = []
+    for gene in panel_genes:
+        gene_loc = gene.get_gene_loc()
+        gene_cov = gene_coverages[gene_loc]
+        gene_exon_cov = gene_mane_exons_coverage[gene_loc]
 
-    # hgnc_to_exon_perc_at_thres = {}
-    # for gene in gene_covs:
-    #     exon_cov = calculate_exon_coverage(gene, exon_cov_dict)
-    #     hgnc_to_exon_cov[gene.gene.hgnc_symbol] = exon_cov
+        mane_loc = gene.get_mane_loc()
+        mane_cov = mane_coverages[mane_loc]
 
+        output_row: List[str] = [gene.hgnc_symbol]
 
-    # calculate_exon_coverage(gene_covs, exon_cov_dict)
+        output_row.append(str(gene_cov.cov))
+        for cov_at_thres in gene_cov.perc_at_thres.values():
+            output_row.append(str(cov_at_thres))
 
-    # FIXME: Summarize results
-    # Table with per-HGNC entry calculations
+        output_row.append(str(mane_cov.cov))
+        for cov_at_thres in mane_cov.perc_at_thres.values():
+            output_row.append(str(cov_at_thres))
 
-    header = []
-
-    # Also refactor
+        output_row.append(str(gene_exon_cov.cov))
+        for cov_at_thres in gene_exon_cov.perc_at_thres.values():
+            output_row.append(str(cov_at_thres))
+        output_rows.append("\t".join(output_row))
+    print(output_rows)
 
 
 def parse_arguments():
@@ -140,6 +112,11 @@ def parse_arguments():
     parser.add_argument("--outdir", required=True)
     parser.add_argument("--d4tools", help="Path to d4tools executable", required=True)
     parser.add_argument("--d4_file", help="Path to d4tools executable", required=True)
+    parser.add_argument(
+        "--cov_thresholds",
+        help="d4tools calculates perc of reads passing these coverage thresholds. Comma separated integers.",
+        default="10,30",
+    )
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument(
         "--keep_chr", action="store_true", help="Trim leading 'chr' from contig names"
@@ -173,4 +150,6 @@ if __name__ == "__main__":
     print("Parsing MANE transcripts ...")
     genes = parse_mane_gtf(Path(args.mane_gtf), args.keep_chr, args.verbose)
 
-    main(args.d4tools, Path(args.d4_file), panel_hgnc_symbols, genes, Path(args.outdir))
+    thresholds = [int(thres) for thres in args.cov_thresholds.split(",")]
+
+    main(args.d4tools, Path(args.d4_file), panel_hgnc_symbols, genes, Path(args.outdir), thresholds)

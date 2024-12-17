@@ -17,7 +17,37 @@ class Coverage:
         return f"{self.chr}_{self.start}_{self.end}"
 
 
-def run_command(command: List[str]) -> subprocess.CompletedProcess:
+def collect_d4_coverages(
+    all_exon_bed_rows: List[str],
+    output_dir: Path,
+    label: str,
+    d4tools_command: str,
+    d4_file: Path,
+    thresholds: List[int],
+) -> Dict[str, Coverage]:
+    # Unique rows - only calculate coverage once
+    regions_bed = output_dir / f"{label}.bed"
+    cov_out = output_dir / f"{label}_coverage.tsv"
+    exons_thres_out = output_dir / f"{label}_cov_at_thres.tsv"
+
+    with regions_bed.open("w") as out_fh:
+        for bed_row in set(all_exon_bed_rows):
+            print(bed_row, file=out_fh)
+    cov_results = calculate_coverage(d4tools_command, d4_file, regions_bed, cov_out)
+
+    cov_at_thres_results = calculate_perc_at_thres(
+        d4tools_command, d4_file, regions_bed, thresholds, exons_thres_out
+    )
+
+    cov_results_parsed = [row.replace("_", "-") for row in cov_results]
+    cov_at_thres_parsed = [row.replace("_", "-") for row in cov_at_thres_results]
+
+    cov_dict = get_complete_coverage_dict(cov_results_parsed, cov_at_thres_parsed, thresholds)
+
+    return cov_dict
+
+
+def run_command(command: List[str]) -> List[str]:
     print(f"Executing command: {' '.join(command)}")
     try:
         results = subprocess.run(
@@ -33,7 +63,7 @@ def run_command(command: List[str]) -> subprocess.CompletedProcess:
         traceback.print_exc()
         sys.exit(1)
 
-    return results
+    return results.stdout.splitlines()
 
 
 def calculate_coverage(
@@ -48,18 +78,14 @@ def calculate_coverage(
         str(bed_path),
         str(d4_file),
     ]
-    results = run_command(command)
+    result_lines = run_command(command)
 
-    print(f"Writing results to {out_path}")
-    with out_path.open("w") as out_fh:
-        print(results.stdout, file=out_fh)
-
-    return results.stdout.splitlines()
+    return result_lines
     # return [row for row in results.stdout.split("\t") if row != ""]
 
 
 def get_loc_to_cov_dict(coverage_results: List[str]) -> Dict[str, float]:
-    cov_dict = {}
+    cov_dict: Dict[str, float] = {}
     for cov_line in coverage_results:
         chr, start, end, cov = cov_line.split()
         loc = f"{chr}_{start}_{end}"
@@ -70,16 +96,16 @@ def get_loc_to_cov_dict(coverage_results: List[str]) -> Dict[str, float]:
 def get_loc_to_perc_at_thres_dict(
     perc_at_thres_results: List[str], thresholds: List[int]
 ) -> Dict[str, Dict[int, float]]:
-    cov_dict = {}
+    cov_dict: Dict[str, Dict[int, float]] = {}
     for cov_line in perc_at_thres_results:
         fields = cov_line.split("\t")
         chr = fields[0]
         start = fields[1]
         end = fields[2]
 
-        cov_at_thres_dict = {}
+        cov_at_thres_dict: Dict[int, float] = {}
         for i, thres in enumerate(thresholds):
-            cov_at_thres_dict[thres] = fields[3 + i]
+            cov_at_thres_dict[thres] = float(fields[3 + i])
 
         loc = f"{chr}_{start}_{end}"
         cov_dict[loc] = cov_at_thres_dict
@@ -92,7 +118,7 @@ def get_complete_coverage_dict(
     loc_to_cov_dict = get_loc_to_cov_dict(coverage_results)
     perc_at_thres_dict = get_loc_to_perc_at_thres_dict(perc_at_thres_results, thresholds)
 
-    cov_entries = {}
+    cov_entries: Dict[str, Coverage] = {}
 
     for key in loc_to_cov_dict:
         cov = loc_to_cov_dict[key]
@@ -105,7 +131,7 @@ def get_complete_coverage_dict(
 
 
 def calculate_perc_at_thres(
-    d4tools_command: str, d4_file: Path, bed_path: Path, thresholds: List[int], out_path
+    d4tools_command: str, d4_file: Path, bed_path: Path, thresholds: List[int], out_path: Path
 ) -> List[str]:
     thresholds_str = ",".join([str(t) for t in thresholds])
     command = [
@@ -117,11 +143,6 @@ def calculate_perc_at_thres(
         str(bed_path),
         str(d4_file),
     ]
-    results = run_command(command)
+    result_lines = run_command(command)
 
-    print(f"Writing results to {out_path}")
-    with out_path.open("w") as out_fh:
-        print(results.stdout, file=out_fh)
-
-    return results.stdout.splitlines()
-    # return [row for row in results.stdout.split("\t") if row != ""]
+    return result_lines
