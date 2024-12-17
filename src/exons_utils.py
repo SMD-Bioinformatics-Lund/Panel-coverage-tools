@@ -2,6 +2,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from d4tools_utils import Coverage
 from src.parse_utils import Gene
 
 
@@ -75,20 +76,42 @@ class GeneCoverage:
 
 # Mutates panel_genes by adding exon coverage
 def calculate_exon_coverage(
-    panel_genes: List[GeneCoverage],
-    exons_coverage: Path,
-    exons_cov_at_thres: Path,
-    thresholds: List[int],
-):
-    parse_exon_coverage(panel_genes, exons_coverage, exons_cov_at_thres, thresholds)
+    gene: GeneCoverage, loc_to_exon_cov: Dict[str, Coverage]
+) -> Dict[str, float]:
 
-    for gene in panel_genes:
-        exon_cov = gene.get_weighted_coverage()
-        cov_at_thres = []
-        for thres in thresholds:
-            exon_cov_at_thres = gene.get_weighted_cov_at_thres(thres)
-            cov_at_thres.append(exon_cov_at_thres)
-        print(f"{gene.gene.hgnc_symbol} {exon_cov} {cov_at_thres}")
+    exons = gene.exons
+
+    total_length = 0
+    total_length_cov_products = 0
+    total_length_perc_at_thres_products = defaultdict(float)
+    for exon in exons:
+        loc = f"{exon.chr}_{exon.start}_{exon.end}"
+        exon_cov = loc_to_exon_cov[loc]
+        exon_len = exon.end - exon.start + 1
+        total_length += exon_len
+
+        for thres, thres_cov in exon_cov.perc_at_thres.items():
+            total_length_cov_products += total_length * thres_cov
+            total_length_perc_at_thres_products[thres] += total_length_cov_products
+
+    results = {"coverage": total_length_cov_products / total_length}
+
+    for thres, thres_cov in total_length_perc_at_thres_products:
+        results[f"{thres}x"] = thres_cov / total_length
+
+    return results
+
+    # total_length = [ex.end - ex.start + 1 for ex in exon_coverages]
+
+    # parse_exon_coverage(gene_entries, exons_coverage, exons_cov_at_thres, thresholds)
+
+    # for gene in gene_entries:
+    #     exon_cov = gene.get_weighted_coverage()
+    #     cov_at_thres = []
+    #     for thres in thresholds:
+    #         exon_cov_at_thres = gene.get_weighted_cov_at_thres(thres)
+    #         cov_at_thres.append(exon_cov_at_thres)
+    #     print(f"{gene.gene.hgnc_symbol} {exon_cov} {cov_at_thres}")
 
 
 def parse_exon_coverage(

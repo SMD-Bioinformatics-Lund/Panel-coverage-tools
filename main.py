@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import Callable, List, Dict, Set
 
 from src.exons_utils import GeneCoverage, calculate_exon_coverage, parse_exon_coverage
-from src.d4tools_utils import calculate_coverage, calculate_perc_at_thres
+from src.d4tools_utils import (
+    calculate_coverage,
+    calculate_perc_at_thres,
+    get_complete_coverage_dict,
+)
 from src.parse_utils import Gene, parse_mane_gtf, parse_mim2gene, parse_panel_json, parse_panel_text
 from src.wip import assign_single_coverage
 
@@ -41,7 +45,7 @@ def main(
 
     # FIXME: Refactor this
 
-    gene_covs = []
+    gene_covs: List[GeneCoverage] = []
     gene_loc_to_gene_cov = {}
     mane_loc_to_gene_cov = {}
     for gene in panel_genes:
@@ -89,11 +93,29 @@ def main(
         for bed_row in all_exons:
             print(bed_row, file=out_fh)
     exons_cov_out = d4tools_out_dir / "exons_coverage.tsv"
-    calculate_coverage(d4tools_command, d4_file, mane_exons_bed, exons_cov_out)
+    exon_cov_results = calculate_coverage(d4tools_command, d4_file, mane_exons_bed, exons_cov_out)
     exons_thres_out = d4tools_out_dir / "mane_cov_at_thres.tsv"
-    calculate_perc_at_thres(d4tools_command, d4_file, mane_exons_bed, thresholds, exons_thres_out)
+    exon_cov_at_thres_results = calculate_perc_at_thres(
+        d4tools_command, d4_file, mane_exons_bed, thresholds, exons_thres_out
+    )
 
-    calculate_exon_coverage(gene_covs, exons_cov_out, exons_thres_out, thresholds)
+    exon_cov_dict = get_complete_coverage_dict(
+        exon_cov_results, exon_cov_at_thres_results, thresholds
+    )
+
+    hgnc_to_exon_cov = {}
+    for gene in gene_covs:
+        exon_cov = calculate_exon_coverage(gene, exon_cov_dict)
+        hgnc_to_exon_cov[gene.gene.hgnc_symbol] = exon_cov
+
+
+    # hgnc_to_exon_perc_at_thres = {}
+    # for gene in gene_covs:
+    #     exon_cov = calculate_exon_coverage(gene, exon_cov_dict)
+    #     hgnc_to_exon_cov[gene.gene.hgnc_symbol] = exon_cov
+
+
+    # calculate_exon_coverage(gene_covs, exon_cov_dict)
 
     # FIXME: Summarize results
     # Table with per-HGNC entry calculations
