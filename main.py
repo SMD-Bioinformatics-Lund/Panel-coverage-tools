@@ -93,6 +93,10 @@ def main(
         # Collect and print
         # output_rows: List[str] = []
         for gene in panel_genes:
+
+            import pdb
+            pdb.set_trace()
+
             gene_loc = gene.get_gene_loc()
             gene_cov = gene_coverages[gene_loc]
             gene_exon_cov = gene_mane_exons_coverage[gene_loc]
@@ -102,14 +106,17 @@ def main(
 
             output_row: List[str] = [gene.hgnc_symbol]
 
+            output_row.append(gene_cov.location_str)
             output_row.append(str(gene_cov.cov))
             for cov_at_thres in gene_cov.perc_at_thres.values():
                 output_row.append(str(cov_at_thres))
 
+            output_row.append(gene_cov.location_str)
             output_row.append(str(mane_cov.cov))
             for cov_at_thres in mane_cov.perc_at_thres.values():
                 output_row.append(str(cov_at_thres))
 
+            output_row.append(gene_cov.location_str)
             output_row.append(str(gene_exon_cov.cov))
             for cov_at_thres in gene_exon_cov.perc_at_thres.values():
                 output_row.append(str(cov_at_thres))

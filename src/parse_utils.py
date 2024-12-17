@@ -273,6 +273,9 @@ class Gene:
             mane_plus_transcript,
         )
 
+    def __str__(self) -> str:
+        return f"{self.hgnc_symbol} {self.get_gene_loc()} {self.get_mane_loc()}"
+
 
 def parse_mane_gtf(mane_gtf: Path, keep_chr: bool, verbose: bool) -> List[Gene]:
 

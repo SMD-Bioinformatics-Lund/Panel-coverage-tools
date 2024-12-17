@@ -25,6 +25,9 @@ class Coverage:
     def get_loc(self) -> str:
         return f"{self.chr}_{self.start}_{self.end}"
 
+    def __str__(self) -> str:
+        return f"{self.chr}_{self.start}_{self.end} {self.cov} {self.perc_at_thres}"
+
 
 def collect_d4_coverages(
     all_exon_bed_rows: List[str],
@@ -133,7 +136,8 @@ def get_complete_coverage_dict(
         cov = loc_to_cov_dict[key]
         perc_at_thres = perc_at_thres_dict[key]
         chr, start, end = key.split("_")
-        cov_entry = Coverage(chr, int(start), int(end), cov, perc_at_thres)
+        location = f"{chr}:{start}-{end}"
+        cov_entry = Coverage(chr, int(start), int(end), cov, perc_at_thres, location)
         cov_entries[key] = cov_entry
 
     return cov_entries

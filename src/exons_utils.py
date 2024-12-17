@@ -24,8 +24,8 @@ def calculate_exon_coverage(gene: Gene, loc_to_exon_cov: Dict[str, Coverage]) ->
         exon_len = exon.end - exon.start + 1
         exon_lengths.append(exon_len)
 
-        exon_pos = f"{exon.start}-{exon.end}"
-        exon_ranges.append(exon_pos)
+        exon_range = f"{exon.start}-{exon.end}"
+        exon_ranges.append(exon_range)
 
         for thres, thres_cov in exon_cov.perc_at_thres.items():
             exon_cov_at_threS[thres].append(thres_cov)
