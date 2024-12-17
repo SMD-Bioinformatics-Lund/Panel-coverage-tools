@@ -70,31 +70,50 @@ def main(
         coverage = calculate_exon_coverage(gene, exon_coverages)
         gene_mane_exons_coverage[gene.get_gene_loc()] = coverage
 
-    # Collect and print
-    output_rows: List[str] = []
-    for gene in panel_genes:
-        gene_loc = gene.get_gene_loc()
-        gene_cov = gene_coverages[gene_loc]
-        gene_exon_cov = gene_mane_exons_coverage[gene_loc]
+    headers = ["hgnc_symbol"]
 
-        mane_loc = gene.get_mane_loc()
-        mane_cov = mane_coverages[mane_loc]
+    headers.append("gene_cov")
+    for thres in thresholds:
+        headers.append(f"gene_${thres}x")
 
-        output_row: List[str] = [gene.hgnc_symbol]
+    headers.append("mane_cov")
+    for thres in thresholds:
+        headers.append(f"mane_${thres}x")
 
-        output_row.append(str(gene_cov.cov))
-        for cov_at_thres in gene_cov.perc_at_thres.values():
-            output_row.append(str(cov_at_thres))
+    headers.append("exon_cov")
+    for thres in thresholds:
+        headers.append(f"exon_${thres}x")
 
-        output_row.append(str(mane_cov.cov))
-        for cov_at_thres in mane_cov.perc_at_thres.values():
-            output_row.append(str(cov_at_thres))
+    out_path = out_dir / "results.tsv"
+    with out_path.open("w") as out_fh:
+        print("\t".join(headers), file=out_fh)
+        # Collect and print
+        # output_rows: List[str] = []
+        for gene in panel_genes:
+            gene_loc = gene.get_gene_loc()
+            gene_cov = gene_coverages[gene_loc]
+            gene_exon_cov = gene_mane_exons_coverage[gene_loc]
 
-        output_row.append(str(gene_exon_cov.cov))
-        for cov_at_thres in gene_exon_cov.perc_at_thres.values():
-            output_row.append(str(cov_at_thres))
-        output_rows.append("\t".join(output_row))
-    print(output_rows)
+            mane_loc = gene.get_mane_loc()
+            mane_cov = mane_coverages[mane_loc]
+
+            output_row: List[str] = [gene.hgnc_symbol]
+
+            output_row.append(str(gene_cov.cov))
+            for cov_at_thres in gene_cov.perc_at_thres.values():
+                output_row.append(str(cov_at_thres))
+
+            output_row.append(str(mane_cov.cov))
+            for cov_at_thres in mane_cov.perc_at_thres.values():
+                output_row.append(str(cov_at_thres))
+
+            output_row.append(str(gene_exon_cov.cov))
+            for cov_at_thres in gene_exon_cov.perc_at_thres.values():
+                output_row.append(str(cov_at_thres))
+
+            output_string = "\t".join(output_row)
+            print(output_string, file=out_fh)
+        # print(output_rows)
 
 
 def parse_arguments():

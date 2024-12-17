@@ -9,7 +9,7 @@ MANE_SELECT_PLUS_CLINICAL_TAG = "MANE_Plus_Clinical"
 
 
 def parse_panel_json(panel_json: Path) -> Set[str]:
-    hgnc_symbols = set()
+    hgnc_symbols: Set[str] = set()
     with panel_json.open() as json_fh:
         json_data = json.load(json_fh)
         hgnc_symbols = set([gene_info["symbol"] for gene_info in json_data["genes"]])
@@ -17,7 +17,7 @@ def parse_panel_json(panel_json: Path) -> Set[str]:
 
 
 def parse_panel_text(panel_text: Path) -> Set[str]:
-    hgnc_symbols = set()
+    hgnc_symbols: Set[str] = set()
     with panel_text.open() as txt_fh:
         for line in txt_fh:
             line = line.rstrip()
@@ -26,7 +26,7 @@ def parse_panel_text(panel_text: Path) -> Set[str]:
 
 
 def parse_mim2gene(mim2gene: Path) -> Dict[str, str]:
-    hgnc_to_ensembl = {}
+    hgnc_to_ensembl: Dict[str, str] = {}
 
     with open(mim2gene) as in_fh:
         nbr_skipped = 0
@@ -38,7 +38,7 @@ def parse_mim2gene(mim2gene: Path) -> Dict[str, str]:
             if len(fields) < 5:
                 nbr_skipped += 1
                 continue
-            mim_number_, mim_entry_type_, entrez_gene_id_, hgnc_symbol, ensembl_gene = fields
+            _, _, _, hgnc_symbol, ensembl_gene = fields
             hgnc_to_ensembl[hgnc_symbol] = ensembl_gene
         print(f"Number skipped: {nbr_skipped} nbr stored: {len(hgnc_to_ensembl)}")
 
@@ -297,7 +297,12 @@ def parse_mane_gtf(mane_gtf: Path, keep_chr: bool, verbose: bool) -> List[Gene]:
                 if verbose:
                     print(f"Found gene {gtf_entry.hgnc_name} with {len(curr_gene_entries)} entries")
                 gene = Gene.parse_gtf_entries(curr_gene_entries, verbose)
-                genes.append(gene)
+                if gene.gene_entry.chr.find("_") == -1:
+                    genes.append(gene)
+                else:
+                    print(
+                        f"Skipping gene with non-normal chr: {gene.hgnc_symbol} {gene.gene_entry.chr}"
+                    )
                 curr_gene_entries = []
         curr_gene_entries.append(gtf_entry)
 
