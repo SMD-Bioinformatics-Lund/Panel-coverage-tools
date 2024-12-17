@@ -14,6 +14,7 @@ mongoexport \
     --collection=gene_panel \
     --query='{"panel_name": "OMIM-AUTO"}' \
     --sort='{ "version": -1 }' \
+    --limit=1 \
     --out=omim_latest.json
 ```
 
