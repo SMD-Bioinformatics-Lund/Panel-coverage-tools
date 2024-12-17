@@ -61,9 +61,13 @@ def main(
 
     mane_exons_bed = out_dir / "mane_exons.bed"
     with mane_exons_bed.open("w") as out_fh:
+        all_exons = set()
         for gene in panel_genes:
             for bed_row in gene.get_bed_exons():
-                print(bed_row, file=out_fh)
+                all_exons.add(bed_row)
+        # Unique rows - only calculate coverage once
+        for bed_row in all_exons:
+            print(bed_row, file=out_fh)
     exons_cov_out = d4tools_out_dir / "exons_coverage.tsv"
     calculate_coverage(d4tools_command, d4_file, mane_exons_bed, exons_cov_out)
     exons_thres_out = d4tools_out_dir / "mane_cov_at_thres.tsv"

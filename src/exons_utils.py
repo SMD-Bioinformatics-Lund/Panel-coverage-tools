@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
 
@@ -24,7 +25,11 @@ class GeneExonCoverage:
         self.exon_cov_at_thres[loc] = cov_at_thres
 
     def get_weighted_coverage(self) -> float:
-        assert len(self.exons) == len(self.exon_coverage)
+        if len(self.exons) != len(self.exon_coverage):
+            import pdb
+
+            pdb.set_trace()
+            raise ValueError("Unexpected difference in length in number of exons")
 
         tot_length = 0
         cov_x_lens = []
@@ -68,18 +73,21 @@ def calculate_exon_coverage(
         for thres in thresholds:
             exon_cov_at_thres = gene.get_weighted_cov_at_thres(thres)
             cov_at_thres.append(exon_cov_at_thres)
-        print(f"{gene.gene.hgnc_symbol} {exon_cov} {cov_at_thres}")
+        # print(f"{gene.gene.hgnc_symbol} {exon_cov} {cov_at_thres}")
 
 
 def parse_exon_coverage(
     panel_genes: List[Gene], exon_coverage: Path, exon_thres: Path, thresholds: List[int]
 ) -> List[GeneExonCoverage]:
-    exon_loc_to_gene: Dict[str, GeneExonCoverage] = {}
+    genes_only: List[GeneExonCoverage] = []
+    # Same exon can be used in multiple genes
+    exon_loc_to_genes: Dict[str, List[GeneExonCoverage]] = defaultdict(list)
     for gene in panel_genes:
         gene_exon_coverage = GeneExonCoverage(gene)
         for exon in gene.mane_transcript.exons:
             loc = f"{exon.chr}_{exon.start}_{exon.end}"
-            exon_loc_to_gene[loc] = gene_exon_coverage
+            exon_loc_to_genes[loc].append(gene_exon_coverage)
+        genes_only.append(gene_exon_coverage)
 
     coverage_header = None
     with exon_coverage.open() as in_fh:
@@ -96,7 +104,9 @@ def parse_exon_coverage(
             chr, start, end, cov = line.split("\t")
 
             loc = f"{chr}_{start}_{end}"
-            exon_loc_to_gene[loc].add_coverage(loc, float(cov))
+
+            for gene in exon_loc_to_genes[loc]:
+                gene.add_coverage(loc, float(cov))
 
     thres_header = None
     with exon_thres.open() as in_fh:
@@ -121,5 +131,6 @@ def parse_exon_coverage(
                 cov_at_thres = float(cov_at_thresholds[i])
                 cov_at_thres_dict[thres] = cov_at_thres
 
-            exon_loc_to_gene[loc].add_cov_at_thres(loc, cov_at_thres_dict)
-    return list(exon_loc_to_gene.values())
+            for gene in exon_loc_to_genes[loc]:
+                gene.add_cov_at_thres(loc, cov_at_thres_dict)
+    return genes_only
