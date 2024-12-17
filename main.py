@@ -73,8 +73,12 @@ def main(
     exons_thres_out = d4tools_out_dir / "mane_cov_at_thres.tsv"
     calculate_perc_at_thres(d4tools_command, d4_file, mane_exons_bed, thresholds, exons_thres_out)
 
-    # FIXME: Parsing back of the exons
     calculate_exon_coverage(panel_genes, exons_cov_out, exons_thres_out, thresholds)
+
+    # FIXME: Summarize results
+    # Table with per-HGNC entry calculations
+
+    # Also refactor
 
 
 def parse_arguments():

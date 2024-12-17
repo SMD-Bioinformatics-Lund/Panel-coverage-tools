@@ -73,7 +73,7 @@ def calculate_exon_coverage(
         for thres in thresholds:
             exon_cov_at_thres = gene.get_weighted_cov_at_thres(thres)
             cov_at_thres.append(exon_cov_at_thres)
-        # print(f"{gene.gene.hgnc_symbol} {exon_cov} {cov_at_thres}")
+        print(f"{gene.gene.hgnc_symbol} {exon_cov} {cov_at_thres}")
 
 
 def parse_exon_coverage(
