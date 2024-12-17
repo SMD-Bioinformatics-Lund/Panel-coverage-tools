@@ -1,16 +1,29 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from src.parse_utils import Gene
 
 
-class GeneExonCoverage:
+class GeneCoverage:
     def __init__(self, gene: Gene):
         self.gene = gene
         self.exons = gene.mane_transcript.exons
         self.exon_coverage = {}
         self.exon_cov_at_thres: Dict[str, Dict[int, float]] = {}
+
+        self.gene_cov: Optional[float] = None
+        self.gene_cov_at_thres: Optional[Dict[int, float]] = None
+        self.mane_cov: Optional[float] = None
+        self.mane_cov_at_thres: Optional[Dict[int, float]] = None
+
+    def get_gene_loc(self) -> str:
+        gene_entry = self.gene.gene_entry
+        return f"{gene_entry.chr}_{gene_entry.start}_{gene_entry.end}"
+
+    def get_mane_loc(self) -> str:
+        mane_transcript = self.gene.mane_transcript
+        return f"{mane_transcript.chr}_{mane_transcript.start}_{mane_transcript.end}"
 
     def add_coverage(self, loc: str, coverage: float):
         if self.exon_coverage.get(loc) and self.exon_coverage[loc] != coverage:
@@ -60,14 +73,16 @@ class GeneExonCoverage:
         return sum(cov_at_thres_x_lens) / tot_length
 
 
+# Mutates panel_genes by adding exon coverage
 def calculate_exon_coverage(
-    panel_genes: List[Gene], exons_coverage: Path, exons_cov_at_thres: Path, thresholds: List[int]
+    panel_genes: List[GeneCoverage],
+    exons_coverage: Path,
+    exons_cov_at_thres: Path,
+    thresholds: List[int],
 ):
-    genes_with_exon_coverage = parse_exon_coverage(
-        panel_genes, exons_coverage, exons_cov_at_thres, thresholds
-    )
+    parse_exon_coverage(panel_genes, exons_coverage, exons_cov_at_thres, thresholds)
 
-    for gene in genes_with_exon_coverage:
+    for gene in panel_genes:
         exon_cov = gene.get_weighted_coverage()
         cov_at_thres = []
         for thres in thresholds:
@@ -77,17 +92,18 @@ def calculate_exon_coverage(
 
 
 def parse_exon_coverage(
-    panel_genes: List[Gene], exon_coverage: Path, exon_thres: Path, thresholds: List[int]
-) -> List[GeneExonCoverage]:
-    genes_only: List[GeneExonCoverage] = []
+    panel_genes: List[GeneCoverage], exon_coverage: Path, exon_thres: Path, thresholds: List[int]
+):
+    # genes_only: List[GeneCoverage] = []
     # Same exon can be used in multiple genes
-    exon_loc_to_genes: Dict[str, List[GeneExonCoverage]] = defaultdict(list)
-    for gene in panel_genes:
-        gene_exon_coverage = GeneExonCoverage(gene)
+    exon_loc_to_genes: Dict[str, List[GeneCoverage]] = defaultdict(list)
+    for gene_exon_coverage in panel_genes:
+        # gene_exon_coverage = GeneCoverage(gene)
+        gene = gene_exon_coverage.gene
         for exon in gene.mane_transcript.exons:
             loc = f"{exon.chr}_{exon.start}_{exon.end}"
             exon_loc_to_genes[loc].append(gene_exon_coverage)
-        genes_only.append(gene_exon_coverage)
+        # genes_only.append(gene_exon_coverage)
 
     coverage_header = None
     with exon_coverage.open() as in_fh:
@@ -133,4 +149,3 @@ def parse_exon_coverage(
 
             for gene in exon_loc_to_genes[loc]:
                 gene.add_cov_at_thres(loc, cov_at_thres_dict)
-    return genes_only

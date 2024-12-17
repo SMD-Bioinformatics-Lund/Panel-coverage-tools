@@ -24,11 +24,12 @@ def run_command(command: List[str]) -> subprocess.CompletedProcess:
     return results
 
 
-def calculate_coverage(d4tools_command: str, d4_file: Path, bed_path: Path, out_path: Path):
+def calculate_coverage(
+    d4tools_command: str, d4_file: Path, bed_path: Path, out_path: Path
+) -> List[str]:
     command = [
         d4tools_command,
         "stat",
-        "-H",
         "--stat",
         "mean",
         "--region",
@@ -41,15 +42,17 @@ def calculate_coverage(d4tools_command: str, d4_file: Path, bed_path: Path, out_
     with out_path.open("w") as out_fh:
         print(results.stdout, file=out_fh)
 
+    return results.stdout.splitlines()
+    # return [row for row in results.stdout.split("\t") if row != ""]
+
 
 def calculate_perc_at_thres(
     d4tools_command: str, d4_file: Path, bed_path: Path, thresholds: List[int], out_path
-):
+) -> List[str]:
     thresholds_str = ",".join([str(t) for t in thresholds])
     command = [
         d4tools_command,
         "stat",
-        "-H",
         "--stat",
         f"perc_cov={thresholds_str}",
         "--region",
@@ -61,3 +64,6 @@ def calculate_perc_at_thres(
     print(f"Writing results to {out_path}")
     with out_path.open("w") as out_fh:
         print(results.stdout, file=out_fh)
+
+    return results.stdout.splitlines()
+    # return [row for row in results.stdout.split("\t") if row != ""]

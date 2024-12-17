@@ -4,9 +4,10 @@ import argparse
 from pathlib import Path
 from typing import Callable, List, Dict, Set
 
-from src.exons_utils import calculate_exon_coverage, parse_exon_coverage
+from src.exons_utils import GeneCoverage, calculate_exon_coverage, parse_exon_coverage
 from src.d4tools_utils import calculate_coverage, calculate_perc_at_thres
 from src.parse_utils import Gene, parse_mane_gtf, parse_mim2gene, parse_panel_json, parse_panel_text
+from wip import assign_single_coverage
 
 __version_info__ = ("1", "0", "1")
 __version__ = ".".join(__version_info__)
@@ -35,29 +36,95 @@ def main(
     print(f"Missed {len(missed_hgnc_symbols)} HGNC symbols: {missed_hgnc_symbols}")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    gene_bed = out_dir / "genes.bed"
     d4tools_out_dir = out_dir / "d4tools_results"
     d4tools_out_dir.mkdir(parents=True, exist_ok=True)
     thresholds = [10, 30]
 
     # FIXME: Refactor this
 
-    with gene_bed.open("w") as out_fh:
-        for gene in panel_genes:
-            print(gene.get_bed_row(), file=out_fh)
-    gene_cov_out = d4tools_out_dir / "gene_coverage.tsv"
-    calculate_coverage(d4tools_command, d4_file, gene_bed, gene_cov_out)
-    gene_thres_out = d4tools_out_dir / "gene_cov_at_thres.tsv"
-    calculate_perc_at_thres(d4tools_command, d4_file, gene_bed, thresholds, gene_thres_out)
+    gene_covs = []
+    gene_loc_to_gene_cov = {}
+    mane_loc_to_gene_cov = {}
+    for gene in panel_genes:
+        gene_cov = GeneCoverage(gene)
+        gene_covs.append(gene_cov)
 
-    mane_transcripts_bed = out_dir / "mane_transcripts.bed"
-    with mane_transcripts_bed.open("w") as out_fh:
-        for gene in panel_genes:
-            print(gene.get_mane_transcript_bed_row(), file=out_fh)
-    mane_cov_out = d4tools_out_dir / "mane_coverage.tsv"
-    calculate_coverage(d4tools_command, d4_file, mane_transcripts_bed, mane_cov_out)
-    mane_thres_out = d4tools_out_dir / "mane_cov_at_thres.tsv"
-    calculate_perc_at_thres(d4tools_command, d4_file, gene_bed, thresholds, mane_thres_out)
+        gene_loc = gene_cov.get_gene_loc()
+        mane_loc = gene_cov.get_mane_loc()
+
+        gene_loc_to_gene_cov[gene_loc] = gene_cov
+        mane_loc_to_gene_cov[mane_loc] = gene_cov
+
+    assign_single_coverage(
+        gene_covs, gene_loc_to_gene_cov, d4tools_out_dir, d4tools_command, d4_file
+    )
+    assign_single_coverage(
+        gene_covs, mane_loc_to_gene_cov, d4tools_out_dir, d4tools_command, d4_file
+    )
+
+    # with gene_bed.open("w") as out_fh:
+    #     for gene in panel_genes:
+    #         print(gene.get_bed_row(), file=out_fh)
+    # gene_cov_out = d4tools_out_dir / "gene_coverage.tsv"
+    # gene_cov_results = calculate_coverage(d4tools_command, d4_file, gene_bed, gene_cov_out)
+    # gene_thres_out = d4tools_out_dir / "gene_cov_at_thres.tsv"
+    # gene_at_thres_results = calculate_perc_at_thres(
+    #     d4tools_command, d4_file, gene_bed, thresholds, gene_thres_out
+    # )
+
+    # for gene_cov_row in gene_cov_results:
+    #     chr, start, end, cov = gene_cov_row.split("\t")
+    #     loc = f"{chr}_{start}_{end}"
+    #     gene_loc_to_gene_cov[loc].gene_cov = float(cov)
+
+    # for gene_cov_at_thres in gene_at_thres_results:
+    #     fields = gene_cov_at_thres.split("\t")
+    #     chr = fields[0]
+    #     start = fields[1]
+    #     end = fields[2]
+    #     # FIXME: Generalize
+    #     cov_10x = fields[3]
+    #     cov_30x = fields[4]
+    #     cov_at_thres = {10: cov_10x, 30: cov_30x}
+    #     # chr, start, end, cov = gene_cov_row
+    #     loc = f"{chr}_{start}_{end}"
+    #     gene_loc_to_gene_cov[loc].gene_cov_at_thres = cov_at_thres
+
+    # mane_transcripts_bed = out_dir / "mane_transcripts.bed"
+    # with mane_transcripts_bed.open("w") as out_fh:
+    #     for gene in panel_genes:
+    #         print(gene.get_mane_transcript_bed_row(), file=out_fh)
+    # mane_cov_out = d4tools_out_dir / "mane_coverage.tsv"
+    # mane_cov_results = calculate_coverage(
+    #     d4tools_command, d4_file, mane_transcripts_bed, mane_cov_out
+    # )
+    # mane_thres_out = d4tools_out_dir / "mane_cov_at_thres.tsv"
+    # mane_cov_at_thres_results = calculate_perc_at_thres(
+    #     d4tools_command, d4_file, mane_transcripts_bed, thresholds, mane_thres_out
+    # )
+    # for mane_cov_row in mane_cov_results:
+    #     chr, start, end, cov = mane_cov_row.split("\t")
+    #     loc = f"{chr}_{start}_{end}"
+    #     mane_loc_to_gene_cov[loc].mane_cov = float(cov)
+
+    # for mane_cov_at_thres in mane_cov_at_thres_results:
+    #     fields = mane_cov_at_thres.split("\t")
+    #     chr = fields[0]
+    #     start = fields[1]
+    #     end = fields[2]
+    #     # FIXME: Generalize
+    #     cov_10x = fields[3]
+    #     cov_30x = fields[4]
+    #     cov_at_thres = {10: cov_10x, 30: cov_30x}
+    #     # chr, start, end, cov = gene_cov_row
+    #     loc = f"{chr}_{start}_{end}"
+
+    #     try:
+    #         mane_loc_to_gene_cov[loc].mane_cov_at_thres = cov_at_thres
+    #     except:
+    #         import pdb
+
+    #         pdb.set_trace()
 
     mane_exons_bed = out_dir / "mane_exons.bed"
     with mane_exons_bed.open("w") as out_fh:
@@ -73,10 +140,12 @@ def main(
     exons_thres_out = d4tools_out_dir / "mane_cov_at_thres.tsv"
     calculate_perc_at_thres(d4tools_command, d4_file, mane_exons_bed, thresholds, exons_thres_out)
 
-    calculate_exon_coverage(panel_genes, exons_cov_out, exons_thres_out, thresholds)
+    calculate_exon_coverage(gene_covs, exons_cov_out, exons_thres_out, thresholds)
 
     # FIXME: Summarize results
     # Table with per-HGNC entry calculations
+
+    header = []
 
     # Also refactor
 
