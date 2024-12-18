@@ -1,6 +1,6 @@
 from pathlib import Path
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, Optional
 import sys
 import traceback
 
@@ -14,6 +14,7 @@ class Coverage:
         cov: float,
         perc_at_thres: Dict[int, float],
         location_str: str,
+        exons: Optional[List["Coverage"]],
     ):
         self.chr = chr
         self.start = start
@@ -21,12 +22,13 @@ class Coverage:
         self.cov = cov
         self.perc_at_thres = perc_at_thres
         self.location_str = location_str
+        self.exons = exons
 
     def get_loc(self) -> str:
-        return f"{self.chr}_{self.start}_{self.end}"
+        return f"{self.chr}:{self.start}-{self.end}"
 
     def __str__(self) -> str:
-        return f"{self.chr}_{self.start}_{self.end} {self.cov} {self.perc_at_thres}"
+        return f"{self.get_loc()} {self.cov} {self.perc_at_thres}"
 
 
 def collect_d4_coverages(
@@ -45,16 +47,15 @@ def collect_d4_coverages(
     with regions_bed.open("w") as out_fh:
         for bed_row in set(all_exon_bed_rows):
             print(bed_row, file=out_fh)
-    cov_results = calculate_coverage(d4tools_command, d4_file, regions_bed, cov_out)
+    cov_results = calculate_coverage(d4tools_command, d4_file, regions_bed)
+    cov_out.write_text("\n".join(cov_results))
 
     cov_at_thres_results = calculate_perc_at_thres(
-        d4tools_command, d4_file, regions_bed, thresholds, exons_thres_out
+        d4tools_command, d4_file, regions_bed, thresholds
     )
+    exons_thres_out.write_text("\n".join(cov_at_thres_results))
 
-    cov_results_parsed = [row.replace("_", "-") for row in cov_results]
-    cov_at_thres_parsed = [row.replace("_", "-") for row in cov_at_thres_results]
-
-    cov_dict = get_complete_coverage_dict(cov_results_parsed, cov_at_thres_parsed, thresholds)
+    cov_dict = get_complete_coverage_dict(cov_results, cov_at_thres_results, thresholds)
 
     return cov_dict
 
@@ -78,9 +79,7 @@ def run_command(command: List[str]) -> List[str]:
     return results.stdout.splitlines()
 
 
-def calculate_coverage(
-    d4tools_command: str, d4_file: Path, bed_path: Path, out_path: Path
-) -> List[str]:
+def calculate_coverage(d4tools_command: str, d4_file: Path, bed_path: Path) -> List[str]:
     command = [
         d4tools_command,
         "stat",
@@ -93,14 +92,13 @@ def calculate_coverage(
     result_lines = run_command(command)
 
     return result_lines
-    # return [row for row in results.stdout.split("\t") if row != ""]
 
 
 def get_loc_to_cov_dict(coverage_results: List[str]) -> Dict[str, float]:
     cov_dict: Dict[str, float] = {}
     for cov_line in coverage_results:
         chr, start, end, cov = cov_line.split()
-        loc = f"{chr}_{start}_{end}"
+        loc = f"{chr}:{start}-{end}"
         cov_dict[loc] = float(cov)
     return cov_dict
 
@@ -119,7 +117,7 @@ def get_loc_to_perc_at_thres_dict(
         for i, thres in enumerate(thresholds):
             cov_at_thres_dict[thres] = float(fields[3 + i])
 
-        loc = f"{chr}_{start}_{end}"
+        loc = f"{chr}:{start}-{end}"
         cov_dict[loc] = cov_at_thres_dict
     return cov_dict
 
@@ -135,16 +133,17 @@ def get_complete_coverage_dict(
     for key in loc_to_cov_dict:
         cov = loc_to_cov_dict[key]
         perc_at_thres = perc_at_thres_dict[key]
-        chr, start, end = key.split("_")
+        chr, start_end = key.split(":")
+        start, end = start_end.split("-")
         location = f"{chr}:{start}-{end}"
-        cov_entry = Coverage(chr, int(start), int(end), cov, perc_at_thres, location)
+        cov_entry = Coverage(chr, int(start), int(end), cov, perc_at_thres, location, None)
         cov_entries[key] = cov_entry
 
     return cov_entries
 
 
 def calculate_perc_at_thres(
-    d4tools_command: str, d4_file: Path, bed_path: Path, thresholds: List[int], out_path: Path
+    d4tools_command: str, d4_file: Path, bed_path: Path, thresholds: List[int]
 ) -> List[str]:
     thresholds_str = ",".join([str(t) for t in thresholds])
     command = [

@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 from typing import List, Dict, Set
 
+from src.output import write_output
 from src.exons_utils import calculate_exon_coverage
 from src.d4tools_utils import (
     Coverage,
@@ -14,7 +15,7 @@ from src.parse_utils import Gene, parse_mane_gtf, parse_mim2gene, parse_panel_js
 __version_info__ = ("1", "0", "1")
 __version__ = ".".join(__version_info__)
 
-description = "Placeholder description"
+description = "Calculate coverage for gene, MANE transcript and MANE transcript exons"
 
 
 def main(
@@ -70,60 +71,10 @@ def main(
         coverage = calculate_exon_coverage(gene, exon_coverages)
         gene_mane_exons_coverage[gene.get_gene_loc()] = coverage
 
-    headers = ["hgnc_symbol"]
-
-    headers.append("gene")
-    headers.append("gene_cov")
-    for thres in thresholds:
-        headers.append(f"gene_{thres}x")
-
-    headers.append("mane")
-    headers.append("mane_cov")
-    for thres in thresholds:
-        headers.append(f"mane_{thres}x")
-
-    headers.append("mane_exons")
-    headers.append("exon_cov")
-    for thres in thresholds:
-        headers.append(f"exon_{thres}x")
-
     out_path = out_dir / "results.tsv"
-    with out_path.open("w") as out_fh:
-        print("\t".join(headers), file=out_fh)
-        # Collect and print
-        # output_rows: List[str] = []
-        for gene in panel_genes:
-
-            import pdb
-            pdb.set_trace()
-
-            gene_loc = gene.get_gene_loc()
-            gene_cov = gene_coverages[gene_loc]
-            gene_exon_cov = gene_mane_exons_coverage[gene_loc]
-
-            mane_loc = gene.get_mane_loc()
-            mane_cov = mane_coverages[mane_loc]
-
-            output_row: List[str] = [gene.hgnc_symbol]
-
-            output_row.append(gene_cov.location_str)
-            output_row.append(str(gene_cov.cov))
-            for cov_at_thres in gene_cov.perc_at_thres.values():
-                output_row.append(str(cov_at_thres))
-
-            output_row.append(gene_cov.location_str)
-            output_row.append(str(mane_cov.cov))
-            for cov_at_thres in mane_cov.perc_at_thres.values():
-                output_row.append(str(cov_at_thres))
-
-            output_row.append(gene_cov.location_str)
-            output_row.append(str(gene_exon_cov.cov))
-            for cov_at_thres in gene_exon_cov.perc_at_thres.values():
-                output_row.append(str(cov_at_thres))
-
-            output_string = "\t".join(output_row)
-            print(output_string, file=out_fh)
-        # print(output_rows)
+    write_output(
+        panel_genes, gene_coverages, gene_mane_exons_coverage, mane_coverages, out_path, thresholds
+    )
 
 
 def parse_arguments():
@@ -146,7 +97,6 @@ def parse_arguments():
         help="d4tools calculates perc of reads passing these coverage thresholds. Comma separated integers.",
         default="10,30",
     )
-    parser.add_argument("--verbose", action="store_true")
     parser.add_argument(
         "--keep_chr", action="store_true", help="Trim leading 'chr' from contig names"
     )
@@ -177,7 +127,7 @@ if __name__ == "__main__":
     hgnc_to_ensembl = parse_mim2gene(args.mim2gene)
 
     print("Parsing MANE transcripts ...")
-    genes = parse_mane_gtf(Path(args.mane_gtf), args.keep_chr, args.verbose)
+    genes = parse_mane_gtf(Path(args.mane_gtf), args.keep_chr)
 
     thresholds = [int(thres) for thres in args.cov_thresholds.split(",")]
 
