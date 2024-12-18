@@ -35,7 +35,7 @@ def parse_mim2gene(mim2gene: Path) -> Dict[str, str]:
     return hgnc_to_ensembl
 
 
-def parse_gtf(gtf: Path) -> List[GTFEntry]:
+def parse_gtf(gtf: Path, keep_chr: bool) -> List[GTFEntry]:
 
     gtf_entries: List[GTFEntry] = []
 
@@ -50,6 +50,10 @@ def parse_gtf(gtf: Path) -> List[GTFEntry]:
         if line.startswith("#!"):
             print(f"Skipping header line: {line}")
             continue
+
+        if not keep_chr and line.startswith("chr"):
+            line = line.replace("chr", "", 1)
+
         gtf_entry = GTFEntry.parse_row(line)
         gtf_entries.append(gtf_entry)
 
@@ -60,7 +64,7 @@ def parse_gtf(gtf: Path) -> List[GTFEntry]:
 
 def parse_mane_gtf(mane_gtf: Path, keep_chr: bool) -> List[Gene]:
 
-    gtf_entries = parse_gtf(mane_gtf)
+    gtf_entries = parse_gtf(mane_gtf, keep_chr)
 
     genes: List[Gene] = []
 
@@ -70,7 +74,7 @@ def parse_mane_gtf(mane_gtf: Path, keep_chr: bool) -> List[Gene]:
         gene_to_gtf_entries[gtf_entry.gene_id].append(gtf_entry)
 
     for gene_entries in gene_to_gtf_entries.values():
-        gene = Gene.parse_gtf_entries(gene_entries, keep_chr)
+        gene = Gene.parse_gtf_entries(gene_entries)
         genes.append(gene)
 
     return genes
