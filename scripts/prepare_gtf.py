@@ -4,20 +4,24 @@ import argparse
 from pathlib import Path
 from typing import List
 
-from classes import GTFEntry
+from src.classes import GTFEntry
 from src.parse_utils import parse_gtf
 
 
 def main(in_gtf: Path, panel_names: Path, out_gtf: Path, keep_chr: bool):
 
-    panel_hgnc_names = panel_names.read_text().split("\t")
-    gtf_entries = parse_gtf(in_gtf, keep_chr)
+    panel_hgnc_names = panel_names.read_text().split("\n")
+    gtf_entries = parse_gtf(in_gtf, keep_chr, with_progress=True)
+
+    print(f"{len(gtf_entries)} unfiltered entries found")
 
     filtered_entries: List[GTFEntry] = []
     for entry in gtf_entries:
         if entry.hgnc_name in panel_hgnc_names:
             if entry.mol_type == "gene" or entry.has_mane_tag():
                 filtered_entries.append(entry)
+
+    print(f"Writing {len(filtered_entries)} filtered rows to {out_gtf}")
 
     with out_gtf.open("w") as out_fh:
         for entry in filtered_entries:

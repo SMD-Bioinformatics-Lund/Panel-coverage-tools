@@ -27,6 +27,14 @@ class Coverage:
     def get_loc(self) -> str:
         return f"{self.chr}:{self.start}-{self.end}"
 
+    def get_output_vals(self, thresholds: List[int], skip_loc: bool = False) -> List[str]:
+        vals = [str(self.cov)]
+        for thres in thresholds:
+            vals.append(str(self.perc_at_thres[thres]))
+        if not skip_loc:
+            vals.append(self.get_loc())
+        return vals
+
     def __str__(self) -> str:
         return f"{self.get_loc()} {self.cov} {self.perc_at_thres}"
 

@@ -10,7 +10,7 @@ from src.d4tools_utils import (
     Coverage,
     collect_d4_coverages,
 )
-from src.parse_utils import Gene, parse_mane_gtf, parse_mim2gene, parse_panel_json, parse_panel_text
+from src.parse_utils import Gene, parse_mane_gtf, parse_panel_text
 
 __version_info__ = ("1", "0", "1")
 __version__ = ".".join(__version_info__)
@@ -47,8 +47,9 @@ def main(
     for gene in panel_genes:
         gene_bed = gene.get_bed_row()
         gene_bed_rows.append(gene_bed)
-        mane_bed = gene.get_mane_transcript_bed_row()
-        mane_bed_rows.append(mane_bed)
+        if gene.mane_transcript:
+            mane_bed = gene.get_mane_transcript_bed_row()
+            mane_bed_rows.append(mane_bed)
 
     gene_coverages = collect_d4_coverages(
         gene_bed_rows, out_dir, "gene", d4tools_command, d4_file, thresholds
@@ -60,16 +61,18 @@ def main(
 
     all_exon_bed_rows: List[str] = []
     for gene in panel_genes:
-        for bed_row in gene.get_bed_exons():
-            all_exon_bed_rows.append(bed_row)
+        if gene.mane_transcript:
+            for bed_row in gene.get_bed_exons():
+                all_exon_bed_rows.append(bed_row)
     exon_coverages = collect_d4_coverages(
         all_exon_bed_rows, out_dir, "exons", d4tools_command, d4_file, thresholds
     )
 
     gene_mane_exons_coverage: Dict[str, Coverage] = {}
     for gene in panel_genes:
-        coverage = calculate_exon_coverage(gene, exon_coverages)
-        gene_mane_exons_coverage[gene.get_gene_loc()] = coverage
+        if gene.mane_transcript:
+            coverage = calculate_exon_coverage(gene, exon_coverages)
+            gene_mane_exons_coverage[gene.get_gene_loc()] = coverage
 
     out_path = out_dir / "results.tsv"
     write_output(
@@ -81,9 +84,6 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--panel_tsv", required=True, help="One column with gene panel HGNC symbols"
-    )
-    parser.add_argument(
-        "--mim2gene", help="OMIM map of gene names to ENSEMBL gene IDs", required=True
     )
     parser.add_argument("--mane_gtf", help="GTF file with MANE transcripts", required=True)
     parser.add_argument("--outdir", required=True)
@@ -109,11 +109,9 @@ if __name__ == "__main__":
         print("Trimming leading 'chr', use option '--keep_chr' to keep them")
 
     print("Loading panel genes")
-    panel_hgnc_symbols = parse_panel_text(Path(args.panel_text))
+    panel_hgnc_symbols = parse_panel_text(Path(args.panel_tsv))
 
     print(f"{len(panel_hgnc_symbols)} HGNC symbols loaded")
-
-    hgnc_to_ensembl = parse_mim2gene(args.mim2gene)
 
     print("Parsing MANE transcripts ...")
     genes = parse_mane_gtf(Path(args.mane_gtf), args.keep_chr)

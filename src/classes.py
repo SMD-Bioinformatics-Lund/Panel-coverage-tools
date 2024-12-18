@@ -16,7 +16,7 @@ class GTFEntry:
         start: int,
         end: int,
         gene_id: str,
-        hgnc_name: str,
+        hgnc_name: Optional[str],
         tags: List[str],
         transcript_id: Optional[str],
         db_xref: Optional[str],
@@ -48,8 +48,9 @@ class GTFEntry:
         raw_chr, _, mol_type, start, end, _, _, _, info_str = fields
         chr = raw_chr
         parsed_info = GTFEntry._parse_gtf_info(info_str)
+
         gene_id = parsed_info["gene_id"][0]
-        hgnc_name = parsed_info["gene_name"][0]
+        hgnc_name = parsed_info["gene_name"][0] if parsed_info.get("gene_name") else None
 
         tags = parsed_info.get("tag")
         transcript_id = parsed_info.get("transcript_id")
@@ -73,7 +74,10 @@ class GTFEntry:
         info_fields = [field.strip() for field in info_str.strip(";").split(";")]
         gtf_info: Dict[str, List[str]] = defaultdict(list)
         for field in info_fields:
-            key, value_raw = field.split(" ")
+            try:
+                key, value_raw = field.split(" ", 1)
+            except:
+                raise ValueError(f"Failing to parse for fields: {info_fields}")
             value_clean = value_raw.strip('"')
             gtf_info[key].append(value_clean)
         return gtf_info
@@ -90,7 +94,7 @@ class Transcript:
         chr: str,
         start: int,
         end: int,
-        db_xref: str,
+        db_xref: Optional[str],
         mane_tag: str,
         exon_entries: List[GTFEntry],
     ):
@@ -139,9 +143,6 @@ class Transcript:
         if transcript_id is None:
             raise ValueError("Expected transcript_id missing")
 
-        if db_xref is None:
-            raise ValueError("Expected RefSeq ID missing")
-
         if len(mane_tags) == 0:
             raise ValueError("Expected mane_tag missing")
 
@@ -166,7 +167,7 @@ class Gene:
         ensembl_gene_id: str,
         hgnc_symbol: str,
         gene: GTFEntry,
-        mane_transcript: Transcript,
+        mane_transcript: Optional[Transcript],
         mane_plus_clinical_transcript: Optional[Transcript],
     ):
         self.ensembl_gene_id = ensembl_gene_id.split(".")[0]
@@ -179,6 +180,8 @@ class Gene:
         return "\t".join([self.gtf_entry.chr, str(self.gtf_entry.start), str(self.gtf_entry.end)])
 
     def get_mane_transcript_bed_row(self) -> str:
+        if not self.mane_transcript:
+            raise ValueError("No MANE transcript available")
         return "\t".join(
             [
                 self.mane_transcript.chr,
@@ -192,9 +195,13 @@ class Gene:
         return self.gtf_entry.get_loc()
 
     def get_mane_loc(self) -> str:
+        if not self.mane_transcript:
+            raise ValueError("No MANE transcript available")
         return self.mane_transcript.get_loc()
 
     def get_bed_exons(self) -> List[str]:
+        if not self.mane_transcript:
+            raise ValueError("No MANE transcript available")
         return self.mane_transcript.get_bed_exons()
 
     @staticmethod
@@ -240,7 +247,11 @@ class Gene:
                 raise ValueError(f"Unknown MANE tag: {transcript.mane_tag}")
 
         if mane_transcript is None:
-            raise ValueError("No MANE transcript entry found")
+            print(f"No MANE found for {gene_entry.hgnc_name}")
+            # raise ValueError(f"No MANE transcript entry found for {gene_entry.hgnc_name}")
+
+        if gene_entry.hgnc_name is None:
+            raise ValueError(f"No HGNC entry name found for gene entry: {gene_entry}")
 
         return Gene(
             gene_entry.gene_id,

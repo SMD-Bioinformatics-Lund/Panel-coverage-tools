@@ -35,7 +35,7 @@ def parse_mim2gene(mim2gene: Path) -> Dict[str, str]:
     return hgnc_to_ensembl
 
 
-def parse_gtf(gtf: Path, keep_chr: bool) -> List[GTFEntry]:
+def parse_gtf(gtf: Path, keep_chr: bool, with_progress: bool = False) -> List[GTFEntry]:
 
     gtf_entries: List[GTFEntry] = []
 
@@ -45,6 +45,7 @@ def parse_gtf(gtf: Path, keep_chr: bool) -> List[GTFEntry]:
     else:
         fh = gtf.open()
 
+    nbr_parsed = 0
     for line in fh:
         line = line.rstrip()
         if line.startswith("#!"):
@@ -56,6 +57,11 @@ def parse_gtf(gtf: Path, keep_chr: bool) -> List[GTFEntry]:
 
         gtf_entry = GTFEntry.parse_row(line)
         gtf_entries.append(gtf_entry)
+
+        if with_progress:
+            nbr_parsed += 1
+            if nbr_parsed % 100000 == 0:
+                print(f"Number of rows parsed: {nbr_parsed}")
 
     fh.close()
 
