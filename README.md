@@ -6,7 +6,7 @@ Tools for working with coverage and panels in d4 files.
 
 The input panel is expected to be a flat text file with HGNC names for each gene of interest.
 
-If using Scout, this can be retrieved from the mongo database as such:
+If using Scout, this can be retrieved from the mongo database as such.
 
 ```
 mongoexport \
@@ -18,13 +18,36 @@ mongoexport \
     --out=omim_latest.json
 ```
 
-You can run the coverage calculation either using this import or by directly supplying a flat text file.
+This can subsequently be converted using the util script `prepare_panel.py`. Note the `python -m scripts.prepare_panel` syntax is needed for it to import other modules correctly.
 
-## Mapping HGNC names to ENSEMBL gene IDs
+```
+python3 -m scripts.prepare_panel --panel_json omim_latest.json --out_tsv omim_latest.tsv
+```
 
-The officially supported map by OMIM can be downloaded from here: https://www.omim.org/static/omim/data/mim2gene.txt
+## Preparing the input GTF
 
-## MANE and exon data
+A GTF file with the genes, their annotations and mane transcripts + exons is required.
+
+You can either download a MANE GTF directly, but you might miss out on some transcripts which have no MANE-transcripts. If included, you will still get gene-level coverage.
+
+Or, you download a full GTF and optionally trim it down to panel genes. This will speed up analysis.
+
+### Preparing a GTF from full ENSEMBL data
+
+In the moment of writing, the latest ENSEMBL GTF can be downloaded from:
+
+https://ftp.ensembl.org/pub/release-113/gtf/homo_sapiens/Homo_sapiens.GRCh38.113.gtf.gz
+
+This can be parsed:
+
+```
+python3 -m scripts.prepare_gtf \
+    --in_gtf Homo_sapiens.GRCh38.113.gtf.gz \
+    --panel_genes omim_latest.tsv \
+    --out_gtf parsed_mane_from_full.gtf
+```
+
+### Downloading MANE only
 
 The latest MANE version can be downloaded from: https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/
 
@@ -32,4 +55,8 @@ Download the genomic GTF file. In the moment of writing, it is this one:
 
 https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4/MANE.GRCh38.v1.4.ensembl_genomic.gtf.gz
 
-This file also contains relevant ranges for MANE transcripts and their exons.
+# Running the main script
+
+```
+python3 main.py --help
+```
