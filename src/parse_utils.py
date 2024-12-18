@@ -1,18 +1,9 @@
 from collections import defaultdict
-import json
 from pathlib import Path
 from typing import List, Dict, Set
 import gzip
 
 from src.classes import GTFEntry, Gene
-
-
-def parse_panel_json(panel_json: Path) -> Set[str]:
-    hgnc_symbols: Set[str] = set()
-    with panel_json.open() as json_fh:
-        json_data = json.load(json_fh)
-        hgnc_symbols = set([gene_info["symbol"] for gene_info in json_data["genes"]])
-    return hgnc_symbols
 
 
 def parse_panel_text(panel_text: Path) -> Set[str]:
@@ -44,27 +35,42 @@ def parse_mim2gene(mim2gene: Path) -> Dict[str, str]:
     return hgnc_to_ensembl
 
 
+def parse_gtf(gtf: Path) -> List[GTFEntry]:
+
+    gtf_entries: List[GTFEntry] = []
+
+    if gtf.suffix == ".gz":
+        print(f"Found suffix: {gtf.suffix}, parsing as gzip file")
+        fh = gzip.open(gtf, "rt")
+    else:
+        fh = gtf.open()
+
+    for line in fh:
+        line = line.rstrip()
+        if line.startswith("#!"):
+            print(f"Skipping header line: {line}")
+            continue
+        gtf_entry = GTFEntry.parse_row(line)
+        gtf_entries.append(gtf_entry)
+
+    fh.close()
+
+    return gtf_entries
+
+
 def parse_mane_gtf(mane_gtf: Path, keep_chr: bool) -> List[Gene]:
 
-    print(f"Found suffix: {mane_gtf.suffix}")
-    if mane_gtf.suffix == ".gz":
-        fh = gzip.open(mane_gtf, "rt")
-    else:
-        fh = mane_gtf.open()
+    gtf_entries = parse_gtf(mane_gtf)
 
     genes: List[Gene] = []
 
     gene_to_gtf_entries: Dict[str, List[GTFEntry]] = defaultdict(list)
 
-    for line in fh:
-        line = line.rstrip()
-        gtf_entry = GTFEntry.parse_row(line, keep_chr)
+    for gtf_entry in gtf_entries:
         gene_to_gtf_entries[gtf_entry.gene_id].append(gtf_entry)
 
     for gene_entries in gene_to_gtf_entries.values():
-        gene = Gene.parse_gtf_entries(gene_entries)
+        gene = Gene.parse_gtf_entries(gene_entries, keep_chr)
         genes.append(gene)
-
-    fh.close()
 
     return genes

@@ -34,15 +34,12 @@ class GTFEntry:
         return f"{self.chr}:{self.start}-{self.end}"
 
     @staticmethod
-    def parse_row(row: str, keep_chr: bool) -> "GTFEntry":
+    def parse_row(row: str) -> "GTFEntry":
         fields = row.split("\t")
         line = row.rstrip()
         fields = line.split("\t")
         raw_chr, _, mol_type, start, end, _, _, _, info_str = fields
-        if not keep_chr and raw_chr.find("chr") == 0:
-            chr = raw_chr.replace("chr", "", 1)
-        else:
-            chr = raw_chr
+        chr = raw_chr
         parsed_info = GTFEntry._parse_gtf_info(info_str)
         gene_id = parsed_info["gene_id"][0]
         hgnc_name = parsed_info["gene_name"][0]

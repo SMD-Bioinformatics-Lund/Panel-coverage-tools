@@ -80,10 +80,7 @@ def main(
 def parse_arguments():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
-        "--panel_json", help="Either --panel_json or --panel_txt needs to be supplied"
-    )
-    parser.add_argument(
-        "--panel_text", help="Either --panel_json or --panel_txt needs to be supplied"
+        "--panel_tsv", required=True, help="One column with gene panel HGNC symbols"
     )
     parser.add_argument(
         "--mim2gene", help="OMIM map of gene names to ENSEMBL gene IDs", required=True
@@ -102,11 +99,6 @@ def parse_arguments():
     )
 
     args = parser.parse_args()
-
-    if args.panel_json is None and args.panel_text is None:
-        raise ValueError("Either --panel_json or --panel_text needs to be supplied")
-
-    args = parser.parse_args()
     return args
 
 
@@ -117,10 +109,7 @@ if __name__ == "__main__":
         print("Trimming leading 'chr', use option '--keep_chr' to keep them")
 
     print("Loading panel genes")
-    if args.panel_text is None and args.panel_json is not None:
-        panel_hgnc_symbols = parse_panel_json(Path(args.panel_json))
-    else:
-        panel_hgnc_symbols = parse_panel_text(Path(args.panel_text))
+    panel_hgnc_symbols = parse_panel_text(Path(args.panel_text))
 
     print(f"{len(panel_hgnc_symbols)} HGNC symbols loaded")
 
