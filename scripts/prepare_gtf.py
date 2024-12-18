@@ -2,18 +2,26 @@
 
 import argparse
 from pathlib import Path
-from typing import Set
+from typing import List
+
+from classes import GTFEntry
+from src.parse_utils import parse_gtf
 
 
-def main(in_gtf: Path, panel_json: Path, out_gtf: Path):
+def main(in_gtf: Path, panel_names: Path, out_gtf: Path, keep_chr: bool):
 
-    gtf_entries = []
+    panel_hgnc_names = panel_names.read_text().split("\t")
+    gtf_entries = parse_gtf(in_gtf, keep_chr)
 
-    with in_gtf.open() as in_fh:
-        for row in in_fh:
-            if row.startswith("#"):
-                continue
+    filtered_entries: List[GTFEntry] = []
+    for entry in gtf_entries:
+        if entry.hgnc_name in panel_hgnc_names:
+            if entry.mol_type == "gene" or entry.has_mane_tag():
+                filtered_entries.append(entry)
 
+    with out_gtf.open("w") as out_fh:
+        for entry in filtered_entries:
+            print(entry.raw_line, file=out_fh)
 
 
 def parse_arguments():
@@ -21,10 +29,13 @@ def parse_arguments():
     parser.add_argument("--in_gtf", required=True)
     parser.add_argument("--panel_genes", required=True)
     parser.add_argument("--out_gtf", required=True)
+    parser.add_argument(
+        "--keep_chr", action="store_true", help="Assign if you want to keep the chr prefix"
+    )
     args = parser.parse_args()
     return args
 
 
 if __name__ == "__main__":
     args = parse_arguments()
-    main(Path(args.in_gtf), Path(args.panel_genes), Path(args.out_gtf))
+    main(Path(args.in_gtf), Path(args.panel_genes), Path(args.out_gtf), args.keep_chr)

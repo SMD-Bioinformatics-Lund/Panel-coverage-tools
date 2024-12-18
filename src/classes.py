@@ -4,11 +4,13 @@ from typing import List, Dict, Optional
 
 MANE_SELECT_TAG = "MANE_Select"
 MANE_SELECT_PLUS_CLINICAL_TAG = "MANE_Plus_Clinical"
+MANE_TAGS = [MANE_SELECT_TAG, MANE_SELECT_PLUS_CLINICAL_TAG]
 
 
 class GTFEntry:
     def __init__(
         self,
+        raw_line: str,
         mol_type: str,
         chr: str,
         start: int,
@@ -19,6 +21,7 @@ class GTFEntry:
         transcript_id: Optional[str],
         db_xref: Optional[str],
     ):
+        self.raw_line = raw_line
         self.mol_type = mol_type
         self.chr = chr
         self.start = start
@@ -29,6 +32,10 @@ class GTFEntry:
         self.transcript_id = transcript_id
         self.db_xref = db_xref
         self.tags = tags
+
+    def has_mane_tag(self) -> bool:
+        mane_tags = [tag for tag in self.tags if tag in MANE_TAGS]
+        return len(mane_tags) > 0
 
     def get_loc(self) -> str:
         return f"{self.chr}:{self.start}-{self.end}"
@@ -49,6 +56,7 @@ class GTFEntry:
         db_xref = parsed_info.get("db_xref")
 
         return GTFEntry(
+            line,
             mol_type,
             chr,
             int(start),
