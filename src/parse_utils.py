@@ -15,26 +15,6 @@ def parse_panel_text(panel_text: Path) -> Set[str]:
     return hgnc_symbols
 
 
-def parse_mim2gene(mim2gene: Path) -> Dict[str, str]:
-    hgnc_to_ensembl: Dict[str, str] = {}
-
-    with open(mim2gene) as in_fh:
-        nbr_skipped = 0
-        for line in in_fh:
-            if line.startswith("#"):
-                continue
-            line = line.rstrip()
-            fields = line.split("\t")
-            if len(fields) < 5:
-                nbr_skipped += 1
-                continue
-            _, _, _, hgnc_symbol, ensembl_gene = fields
-            hgnc_to_ensembl[hgnc_symbol] = ensembl_gene
-        print(f"Number skipped: {nbr_skipped} nbr stored: {len(hgnc_to_ensembl)}")
-
-    return hgnc_to_ensembl
-
-
 def parse_gtf(gtf: Path, keep_chr: bool, with_progress: bool = False) -> List[GTFEntry]:
 
     gtf_entries: List[GTFEntry] = []

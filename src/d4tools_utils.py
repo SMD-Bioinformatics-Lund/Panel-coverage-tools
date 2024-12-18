@@ -3,6 +3,7 @@ import subprocess
 from typing import Dict, List, Optional
 import sys
 import traceback
+import os
 
 
 class Coverage:
@@ -77,6 +78,7 @@ def run_command(command: List[str]) -> List[str]:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=True,
+            env=os.environ,
         )
     except Exception as err:
         print("An error occured")
