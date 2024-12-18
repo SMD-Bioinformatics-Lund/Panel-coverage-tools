@@ -248,7 +248,6 @@ class Gene:
 
         if mane_transcript is None:
             print(f"No MANE found for {gene_entry.hgnc_name}")
-            # raise ValueError(f"No MANE transcript entry found for {gene_entry.hgnc_name}")
 
         if gene_entry.hgnc_name is None:
             raise ValueError(f"No HGNC entry name found for gene entry: {gene_entry}")
